@@ -200,24 +200,23 @@ def validate_state(address):
 	if not address.get("state"):
 		return
 
-	address_state = address.get("state").upper()
+	country_code = frappe.db.get_value("Country", address.get("country"), "code")
+	address_state = (country_code + "-" + address.get("state")).upper()
 
 	# Search the given state in PyCountry's database
 	try:
 		lookup_state = pycountry.subdivisions.lookup(address_state)
 	except LookupError:
 		# If search fails, try again if the given state is an ISO code
-		if len(address_state) in range(1, 4):
-			country_code = frappe.db.get_value("Country", address.get("country"), "code")
-
+		if len(address_state) in range(3, 6):
 			states = pycountry.subdivisions.get(country_code=country_code.upper())
-			states = [state.code.split('-')[1] for state in states]  # PyCountry returns state code as {country_code}-{state-code} (e.g. US-FL)
+			states = [state.code for state in states]  # PyCountry returns state code as {country_code}-{state-code} (e.g. US-FL)
 
 			if address_state in states:
-				return address_state
+				return address.get("state")
 			else:
 				error_message = """{} is not a valid state! Check for typos or enter the ISO code for your state."""
 
-				frappe.throw(_(error_message.format(address_state)))
+				frappe.throw(_(error_message.format(address.get("state"))))
 	else:
 		return lookup_state.code.split('-')[1]
